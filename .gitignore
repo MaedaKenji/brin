@@ -1,0 +1,11 @@
+# Ignore everything by default
+*
+
+# Allow directories so git can traverse them to find .py files
+!*/
+
+# Allow all files with .py extension
+!*.py
+
+# Include this .gitignore file as well
+!.gitignore

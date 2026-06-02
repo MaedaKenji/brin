@@ -6,16 +6,16 @@ Provides both a REST API and a web-based demo interface.
 
 Usage:
     uvicorn final:app --reload --port 8000
-    # API:  POST /api/analyze  (multipart form with image + optional lat/lng)
+    # API:  POST /api/analyze  (multipart form with image/video/webcam frame + optional lat/lng)
     # Web:  GET /
 """
 
 import os
 import io
-# import json
+import json
 import math
-# import tempfile
-# from collections import Counter
+import tempfile
+from collections import Counter
 from typing import Optional
 # pyrefly: ignore [missing-import]
 import cv2
@@ -445,6 +445,163 @@ def analyze_image(
     return output
 
 
+def _merge_video_frame_results(frame_results: list[dict]) -> dict:
+    """
+    Build a video-level summary from sampled frame analyses.
+
+    Counts are reported as the maximum count seen in any sampled frame. This
+    avoids treating the same object as many separate objects just because it
+    appears across multiple frames.
+    """
+    objects: dict[str, dict] = {}
+    actions: dict[str, dict] = {}
+    summary: dict[str, int] = {}
+    door_direction_counts: Counter = Counter()
+
+    for frame in frame_results:
+        result = frame["analysis"]
+
+        for label, data in (result.get("objects") or {}).items():
+            entry = objects.setdefault(label, {
+                "count": 0,
+                "detections_in_frames": 0,
+                "instances": [],
+            })
+            entry["count"] = max(entry["count"], data.get("count", 0))
+            entry["detections_in_frames"] += 1
+            for instance in data.get("instances", []):
+                copied = dict(instance)
+                copied["frame_index"] = frame["frame_index"]
+                copied["timestamp_sec"] = frame["timestamp_sec"]
+                entry["instances"].append(copied)
+
+        for label, data in (result.get("actions") or {}).items():
+            entry = actions.setdefault(label, {"count": 0, "detections_in_frames": 0})
+            entry["count"] = max(entry["count"], data.get("count", 0))
+            entry["detections_in_frames"] += 1
+
+        for door in (result.get("doors") or []):
+            door_direction_counts[door["direction"]] += 1
+
+    doors = [
+        {
+            "direction": direction,
+            "detections_in_frames": count,
+            "description": f"There is a door on your {direction}",
+        }
+        for direction, count in door_direction_counts.items()
+    ]
+
+    for label, data in objects.items():
+        summary[label] = data["count"]
+    for label, data in actions.items():
+        summary[label] = data["count"]
+
+    return {
+        "objects": objects,
+        "actions": actions,
+        "doors": doors if doors else None,
+        "summary": summary,
+    }
+
+
+def analyze_video(
+    video_bytes: bytes,
+    model: YOLO,
+    lat: Optional[float] = None,
+    lng: Optional[float] = None,
+    gps_radius: float = 500,
+    sample_interval_sec: float = 1.0,
+    max_frames: int = 30,
+    suffix: str = ".mp4",
+) -> dict:
+    """
+    Run the image analysis pipeline over sampled video frames.
+
+    The uploaded bytes are written to a temporary file because OpenCV's
+    VideoCapture expects a filesystem path for common container formats.
+    """
+    if sample_interval_sec <= 0:
+        raise ValueError("sample_interval_sec must be greater than 0")
+    if max_frames <= 0:
+        raise ValueError("max_frames must be greater than 0")
+
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(video_bytes)
+            tmp_path = tmp.name
+
+        cap = cv2.VideoCapture(tmp_path)
+        if not cap.isOpened():
+            raise ValueError("Could not decode video")
+
+        fps = cap.get(cv2.CAP_PROP_FPS) or 0
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+        duration_sec = (total_frames / fps) if fps > 0 and total_frames > 0 else None
+        frame_step = max(1, int(round((fps or 1) * sample_interval_sec)))
+
+        frame_results = []
+        frame_index = 0
+        while len(frame_results) < max_frames:
+            ok, frame = cap.read()
+            if not ok:
+                break
+
+            if frame_index % frame_step == 0:
+                encoded, buffer = cv2.imencode(".jpg", frame)
+                if encoded:
+                    analysis = analyze_image(
+                        image_bytes=buffer.tobytes(),
+                        model=model,
+                        lat=None,
+                        lng=None,
+                        gps_radius=gps_radius,
+                    )
+                    frame_results.append({
+                        "frame_index": frame_index,
+                        "timestamp_sec": round(frame_index / fps, 3) if fps > 0 else None,
+                        "analysis": analysis,
+                    })
+            frame_index += 1
+
+        cap.release()
+
+        if not frame_results:
+            raise ValueError("No readable frames found in video")
+
+        aggregate = _merge_video_frame_results(frame_results)
+        gps_section = None
+        if lat is not None and lng is not None:
+            gps_section = {
+                "source": "user_input",
+                "lat": lat,
+                "lng": lng,
+                "poi_result": gps_query(lat, lng, gps_radius),
+            }
+
+        return {
+            "media_type": "video",
+            "video": {
+                "fps": fps,
+                "total_frames": total_frames,
+                "duration_sec": duration_sec,
+                "sample_interval_sec": sample_interval_sec,
+                "sampled_frames": len(frame_results),
+                "max_frames": max_frames,
+            },
+            "objects": aggregate["objects"],
+            "actions": aggregate["actions"],
+            "doors": aggregate["doors"],
+            "summary": aggregate["summary"],
+            "gps": gps_section,
+            "frames": frame_results,
+        }
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+
 # ── FastAPI app ──────────────────────────────────────────────────────────────────
 
 app = FastAPI(
@@ -488,27 +645,51 @@ async def api_analyze(
     lat: Optional[float] = Form(None),
     lng: Optional[float] = Form(None),
     gps_radius: Optional[float] = Form(500),
+    sample_interval_sec: Optional[float] = Form(1.0),
+    max_frames: Optional[int] = Form(30),
 ):
     """
-    Analyze an uploaded image.
+    Analyze an uploaded image or video.
 
-    - **image**: Image file (JPEG/PNG)
+    - **image**: Image or video file. The field name stays `image` for
+      backward compatibility.
     - **lat**: Optional latitude (decimal degrees). If not given, tries EXIF.
     - **lng**: Optional longitude (decimal degrees). If not given, tries EXIF.
     - **gps_radius**: POI search radius in meters (default 500)
+    - **sample_interval_sec**: Video frame sampling interval in seconds
+    - **max_frames**: Maximum sampled video frames to analyze
     """
     contents = await image.read()
     if not contents:
-        raise HTTPException(status_code=400, detail="Empty image file")
+        raise HTTPException(status_code=400, detail="Empty upload file")
+
+    content_type = (image.content_type or "").lower()
+    filename = (image.filename or "").lower()
+    video_extensions = (".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v")
+    video_suffix = os.path.splitext(filename)[1] if filename else ".mp4"
+    is_video = content_type.startswith("video/") or filename.endswith(video_extensions)
 
     try:
-        result = analyze_image(
-            image_bytes=contents,
-            model=_get_model(),
-            lat=lat,
-            lng=lng,
-            gps_radius=gps_radius or 500,
-        )
+        if is_video:
+            result = analyze_video(
+                video_bytes=contents,
+                model=_get_model(),
+                lat=lat,
+                lng=lng,
+                gps_radius=gps_radius or 500,
+                sample_interval_sec=sample_interval_sec or 1.0,
+                max_frames=max_frames or 30,
+                suffix=video_suffix if video_suffix in video_extensions else ".mp4",
+            )
+        else:
+            result = analyze_image(
+                image_bytes=contents,
+                model=_get_model(),
+                lat=lat,
+                lng=lng,
+                gps_radius=gps_radius or 500,
+            )
+            result["media_type"] = "image"
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -566,11 +747,17 @@ input[type=file]{display:none}
   width:100%}
 .btn:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(108,99,255,.35)}
 .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn.secondary{background:var(--surface2);border:1px solid var(--border);color:var(--text)}
+.btn.stop{background:linear-gradient(135deg,var(--accent2),#ef4444)}
+.camera-actions{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
 .spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.3);
   border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;display:none}
 @keyframes spin{to{transform:rotate(360deg)}}
-#preview{max-width:100%;border-radius:10px;margin-top:1rem;display:none;
+#preview,#video-preview,#camera-preview{max-width:100%;border-radius:10px;margin-top:1rem;display:none;
   border:1px solid var(--border)}
+#camera-canvas{display:none}
+.status{margin-top:.8rem;color:var(--text2);font-size:.85rem;min-height:1.2rem}
+.video-options{display:none}
 #result-box{display:none}
 #result{background:var(--surface2);border-radius:10px;padding:1rem;
   overflow-x:auto;font-size:.82rem;line-height:1.5;white-space:pre-wrap;
@@ -586,15 +773,16 @@ input[type=file]{display:none}
 </head>
 <body>
 <h1>🔍 Surrounding Awareness</h1>
-<p class="subtitle">Upload an image to detect objects, actions, doors & nearby POIs</p>
+<p class="subtitle">Upload media or stream your webcam for continuous surrounding awareness</p>
 
 <div class="card">
   <h2>📤 Upload & Settings</h2>
   <label class="file-label" id="file-label" for="image-input">
-    <span id="file-text">Click or drag to upload an image</span>
+    <span id="file-text">Click or drag to upload an image or video</span>
   </label>
-  <input type="file" id="image-input" accept="image/*">
+  <input type="file" id="image-input" accept="image/*,video/*">
   <img id="preview" alt="preview">
+  <video id="video-preview" controls muted playsinline></video>
   <div class="row">
     <div class="field">
       <label for="lat-input">Latitude (optional)</label>
@@ -609,10 +797,37 @@ input[type=file]{display:none}
       <input type="number" id="radius-input" value="500" min="1" max="5000">
     </div>
   </div>
+  <div class="row video-options" id="video-options">
+    <div class="field">
+      <label for="sample-input">Sample every (sec)</label>
+      <input type="number" id="sample-input" value="1" min="0.1" step="0.1">
+    </div>
+    <div class="field">
+      <label for="max-frames-input">Max frames</label>
+      <input type="number" id="max-frames-input" value="30" min="1" max="300">
+    </div>
+  </div>
   <button class="btn" id="analyze-btn" disabled>
     <span class="spinner" id="spinner"></span>
-    <span id="btn-text">Analyze Image</span>
+    <span id="btn-text">Analyze Media</span>
   </button>
+</div>
+
+<div class="card">
+  <h2>Live Webcam</h2>
+  <video id="camera-preview" autoplay muted playsinline></video>
+  <canvas id="camera-canvas"></canvas>
+  <div class="row">
+    <div class="field">
+      <label for="camera-interval-input">Infer every (sec)</label>
+      <input type="number" id="camera-interval-input" value="1" min="0.2" step="0.1">
+    </div>
+  </div>
+  <div class="camera-actions">
+    <button class="btn secondary" id="start-camera-btn">Start Webcam</button>
+    <button class="btn stop" id="stop-camera-btn" disabled>Stop Webcam</button>
+  </div>
+  <div class="status" id="camera-status"></div>
 </div>
 
 <div class="card" id="result-box">
@@ -626,6 +841,14 @@ const fileInput=document.getElementById('image-input'),
       fileLabel=document.getElementById('file-label'),
       fileText=document.getElementById('file-text'),
       preview=document.getElementById('preview'),
+      videoPreview=document.getElementById('video-preview'),
+      videoOptions=document.getElementById('video-options'),
+      cameraPreview=document.getElementById('camera-preview'),
+      cameraCanvas=document.getElementById('camera-canvas'),
+      startCameraBtn=document.getElementById('start-camera-btn'),
+      stopCameraBtn=document.getElementById('stop-camera-btn'),
+      cameraIntervalInput=document.getElementById('camera-interval-input'),
+      cameraStatus=document.getElementById('camera-status'),
       btn=document.getElementById('analyze-btn'),
       btnText=document.getElementById('btn-text'),
       spinner=document.getElementById('spinner'),
@@ -633,64 +856,176 @@ const fileInput=document.getElementById('image-input'),
       resultPre=document.getElementById('result'),
       quickSummary=document.getElementById('quick-summary');
 
-fileInput.addEventListener('change',()=>{
-  if(fileInput.files.length){
-    const f=fileInput.files[0];
-    fileText.textContent=f.name;
-    fileLabel.classList.add('has-file');
-    preview.src=URL.createObjectURL(f);
-    preview.style.display='block';
-    btn.disabled=false;
+let cameraStream=null,
+    cameraTimer=null,
+    cameraRequestInFlight=false,
+    cameraFrameNumber=0;
+
+function renderResult(data){
+  let tags='';
+  if(data.objects){
+    for(const[k,v]of Object.entries(data.objects))
+      tags+=`<span class="tag tag-obj">${k}: ${v.count}</span>`;
   }
-});
+  if(data.actions){
+    for(const[k,v]of Object.entries(data.actions))
+      tags+=`<span class="tag tag-act">${k}: ${v.count}</span>`;
+  }
+  if(data.doors&&data.doors.length){
+    for(const d of data.doors)
+      tags+=`<span class="tag tag-door">${d.description}</span>`;
+  }
+  if(data.gps){
+    tags+=`<span class="tag tag-gps">GPS: ${data.gps.source}</span>`;
+    if(data.gps.poi_result&&data.gps.poi_result.nearest)
+      tags+=`<span class="tag tag-gps">Nearest: ${data.gps.poi_result.nearest.name}</span>`;
+  }
+  quickSummary.innerHTML=tags||'<span class="tag tag-obj">No detections</span>';
+  resultPre.textContent=JSON.stringify(data,null,2);
+  resultBox.style.display='block';
+}
 
-btn.addEventListener('click',async()=>{
-  if(!fileInput.files.length)return;
-  btn.disabled=true;btnText.textContent='Analyzing...';spinner.style.display='inline-block';
-  resultBox.style.display='none';
-
-  const fd=new FormData();
-  fd.append('image',fileInput.files[0]);
+function appendLocationFields(fd){
   const lat=document.getElementById('lat-input').value;
   const lng=document.getElementById('lng-input').value;
   const radius=document.getElementById('radius-input').value;
   if(lat)fd.append('lat',lat);
   if(lng)fd.append('lng',lng);
   if(radius)fd.append('gps_radius',radius);
+}
+
+fileInput.addEventListener('change',()=>{
+  if(fileInput.files.length){
+    const f=fileInput.files[0];
+    fileText.textContent=f.name;
+    fileLabel.classList.add('has-file');
+    const url=URL.createObjectURL(f);
+    const isVideo=f.type.startsWith('video/');
+    preview.style.display='none';
+    videoPreview.style.display='none';
+    if(isVideo){
+      videoPreview.src=url;
+      videoPreview.style.display='block';
+      videoOptions.style.display='flex';
+      btnText.textContent='Analyze Video';
+    }else{
+      preview.src=url;
+      preview.style.display='block';
+      videoOptions.style.display='none';
+      btnText.textContent='Analyze Image';
+    }
+    btn.disabled=false;
+  }
+});
+
+btn.addEventListener('click',async()=>{
+  if(!fileInput.files.length)return;
+  stopCamera();
+  btn.disabled=true;btnText.textContent='Analyzing...';spinner.style.display='inline-block';
+  resultBox.style.display='none';
+
+  const fd=new FormData();
+  fd.append('image',fileInput.files[0]);
+  const sampleEvery=document.getElementById('sample-input').value;
+  const maxFrames=document.getElementById('max-frames-input').value;
+  appendLocationFields(fd);
+  if(fileInput.files[0].type.startsWith('video/')){
+    if(sampleEvery)fd.append('sample_interval_sec',sampleEvery);
+    if(maxFrames)fd.append('max_frames',maxFrames);
+  }
 
   try{
     const res=await fetch('/api/analyze',{method:'POST',body:fd});
     const data=await res.json();
-    // Build quick summary tags
-    let tags='';
-    if(data.objects){
-      for(const[k,v]of Object.entries(data.objects))
-        tags+=`<span class="tag tag-obj">${k}: ${v.count}</span>`;
-    }
-    if(data.actions){
-      for(const[k,v]of Object.entries(data.actions))
-        tags+=`<span class="tag tag-act">${k}: ${v.count}</span>`;
-    }
-    if(data.doors&&data.doors.length){
-      for(const d of data.doors)
-        tags+=`<span class="tag tag-door">🚪 ${d.description}</span>`;
-    }
-    if(data.gps){
-      tags+=`<span class="tag tag-gps">📍 GPS: ${data.gps.source}</span>`;
-      if(data.gps.poi_result&&data.gps.poi_result.nearest)
-        tags+=`<span class="tag tag-gps">Nearest: ${data.gps.poi_result.nearest.name}</span>`;
-    }
-    quickSummary.innerHTML=tags||'<span class="tag tag-obj">No detections</span>';
-    resultPre.textContent=JSON.stringify(data,null,2);
-    resultBox.style.display='block';
+    renderResult(data);
   }catch(e){
     resultPre.textContent='Error: '+e.message;
     quickSummary.innerHTML='';
     resultBox.style.display='block';
   }finally{
-    btn.disabled=false;btnText.textContent='Analyze Image';spinner.style.display='none';
+    btn.disabled=false;
+    btnText.textContent=fileInput.files[0]?.type.startsWith('video/')?'Analyze Video':'Analyze Image';
+    spinner.style.display='none';
   }
 });
+
+async function analyzeCameraFrame(){
+  if(!cameraStream||cameraRequestInFlight||cameraPreview.videoWidth===0)return;
+
+  cameraRequestInFlight=true;
+  cameraFrameNumber+=1;
+  cameraStatus.textContent=`Inferencing frame ${cameraFrameNumber}...`;
+
+  cameraCanvas.width=cameraPreview.videoWidth;
+  cameraCanvas.height=cameraPreview.videoHeight;
+  const ctx=cameraCanvas.getContext('2d');
+  ctx.drawImage(cameraPreview,0,0,cameraCanvas.width,cameraCanvas.height);
+
+  try{
+    const blob=await new Promise(resolve=>cameraCanvas.toBlob(resolve,'image/jpeg',0.85));
+    if(!blob)throw new Error('Could not capture webcam frame');
+
+    const fd=new FormData();
+    fd.append('image',blob,`webcam-frame-${cameraFrameNumber}.jpg`);
+    appendLocationFields(fd);
+
+    const res=await fetch('/api/analyze',{method:'POST',body:fd});
+    const data=await res.json();
+    if(!res.ok)throw new Error(data.detail||'Webcam inference failed');
+    data.media_type='webcam';
+    data.webcam={frame_number:cameraFrameNumber,captured_at:new Date().toISOString()};
+    renderResult(data);
+    cameraStatus.textContent=`Live inferencing. Last frame: ${cameraFrameNumber}`;
+  }catch(e){
+    cameraStatus.textContent='Webcam error: '+e.message;
+  }finally{
+    cameraRequestInFlight=false;
+  }
+}
+
+async function startCamera(){
+  try{
+    if(cameraStream)return;
+    resultBox.style.display='none';
+    cameraFrameNumber=0;
+    cameraStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'environment'},
+      audio:false,
+    });
+    cameraPreview.srcObject=cameraStream;
+    cameraPreview.style.display='block';
+    startCameraBtn.disabled=true;
+    stopCameraBtn.disabled=false;
+    cameraStatus.textContent='Camera started. Waiting for first frame...';
+
+    const intervalMs=Math.max(200,Number(cameraIntervalInput.value||1)*1000);
+    cameraTimer=setInterval(analyzeCameraFrame,intervalMs);
+    cameraPreview.onloadedmetadata=()=>analyzeCameraFrame();
+  }catch(e){
+    cameraStatus.textContent='Could not start webcam: '+e.message;
+    stopCamera();
+  }
+}
+
+function stopCamera(){
+  if(cameraTimer){
+    clearInterval(cameraTimer);
+    cameraTimer=null;
+  }
+  if(cameraStream){
+    for(const track of cameraStream.getTracks())track.stop();
+    cameraStream=null;
+  }
+  cameraRequestInFlight=false;
+  cameraPreview.srcObject=null;
+  cameraPreview.style.display='none';
+  startCameraBtn.disabled=false;
+  stopCameraBtn.disabled=true;
+  if(cameraStatus)cameraStatus.textContent=cameraFrameNumber?'Camera stopped.':'';
+}
+
+startCameraBtn.addEventListener('click',startCamera);
+stopCameraBtn.addEventListener('click',stopCamera);
 </script>
 </body>
 </html>"""

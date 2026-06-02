@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 from ultralytics import YOLO
 from pathlib import Path
 from datetime import datetime
@@ -10,7 +11,9 @@ def run_training(project_dir: Path, run_name: str):
     # Actual training path; called in the child process
     model = YOLO("yolo26n.yaml")  # build a new model from YAML
     model = YOLO("yolo26n.pt")  # load a pretrained model (recommended for training)
-    model = YOLO("yolo26n.yaml").load("yolo26n.pt")  # build from YAML and transfer weights
+    model = YOLO("yolo26n.yaml").load(
+        "yolo26n.pt"
+    )  # build from YAML and transfer weights
 
     model.train(
         # data=r"D:\Code\Python\brin\surrounding-awareness-5\data.yaml", #HARUS GANTI

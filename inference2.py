@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 from ultralytics import YOLO
 import os
 import json

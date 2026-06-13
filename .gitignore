@@ -17,4 +17,8 @@
 !*.ipynb
 !frontend/
 !requirements.txt
+!*.jsx
+!*.tsx
+!*.html
+!*.css
 

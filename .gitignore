@@ -16,4 +16,5 @@
 !*.md
 !*.ipynb
 !frontend/
+!requirements.txt
 

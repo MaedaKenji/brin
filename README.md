@@ -1,12 +1,13 @@
-# Unified Surrounding Awareness API Service
+# Surrounding Awareness — Dynamic Location API
 
-A premium, state-of-the-art API service merging computer vision (YOLO) and GPS/altitude spatial context to provide intelligent surrounding awareness. It dynamically adjusts its inference model based on geographic context, tracks environment details (indoor vs. outdoor), filters redundant detections, and translates altitude measurements into floor estimates.
+A state-of-the-art API service merging computer vision (YOLO) and GPS/altitude spatial context to provide intelligent surrounding awareness. Works with **any GPS location worldwide** — fetch POIs from OpenStreetMap, auto-detect indoor/outdoor context, and analyse images or videos with a single command.
 
 ---
 
 ## 🚀 Key Features
 
 * **Dual-Context Awareness:** Merges visual predictions with spatial coordinates (GPS/Altitude).
+* **Dynamic Multi-Location Support:** Fetch POIs for any GPS coordinate via OpenStreetMap — not locked to a single campus or city.
 * **Dynamic Model Routing:** Automatically chooses the optimal YOLO model (`indoor.pt` or `outdoor.pt`) based on proximity to points of interest, with manual override capabilities.
 * **Intelligent Post-Processing:** Uses per-class Non-Maximum Suppression (NMS) and custom door-specific containment rules to keep detections precise.
 * **Directional Reasoning:** Detects doors and estimates their relative direction (left, front, right).
@@ -24,22 +25,32 @@ For full details regarding the architecture, endpoint specifications, prerequisi
 
 ## 🛠️ Quick Start
 
-If you'd like to get up and running immediately:
+```bash
+# 1. Clone and install
+git clone <repository-url>
+cd brin
+pip install -r requirements.txt
 
-1. **Install Dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+# 2. Launch (single command)
+uvicorn final4:app --reload --port 8000
+```
 
-2. **Place Model Files in Root:**
-   * `indoor.pt`
-   * `outdoor.pt`
-   * `yolo26n.pt`
+Open **http://localhost:8000/** in your browser.
 
-3. **Start the API Server:**
-   ```bash
-   uvicorn final3:app --reload --port 8000
-   ```
+### Use Your Own Location
 
-4. **Access the Web Interface:**
-   Open [http://localhost:8000/](http://localhost:8000/) in your browser.
+```bash
+# Fetch POIs for your GPS coordinates (replace with yours)
+curl -X POST "http://localhost:8000/api/fetch-pois" \
+  -H "Content-Type: application/json" \
+  -d '{"lat": 40.7128, "lng": -74.0060, "radius_m": 1000}'
+
+# Analyse an image
+curl -X POST "http://localhost:8000/api/analyze" \
+  -F "image=@photo.jpg" \
+  -F "lat=40.7128" \
+  -F "lng=-74.0060" \
+  -F "poi_csv=poi_seed.csv"
+```
+
+See the [walkthrough](walkthrough.md) for full API reference, architecture details, and troubleshooting.

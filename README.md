@@ -53,4 +53,4 @@ curl -X POST "http://localhost:8000/api/analyze" \
   -F "poi_csv=poi_seed.csv"
 ```
 
-See the [walkthrough](walkthrough.md) for full API reference, architecture details, and troubleshooting.
+See the walkthrough for full API reference, architecture details, and troubleshooting.

@@ -1,17 +1,13 @@
 # Ignore everything by default
 *
 
-# Allow directories so git can traverse them to find .py files
+# Allow directories so git can traverse them to find files
 # !*/
 
-# Allow all files with .py extension
+# Allow specific file types
 !*.py
 !*.csv
-
-# Include this .gitignore file as well
 !.gitignore
-
-# Allow
 !*.pt
 !*.md
 !*.ipynb
@@ -22,3 +18,6 @@
 !*.html
 !*.css
 
+# Ignore specific files/directories even if they match the allowed types above
+*dump*
+*copy*

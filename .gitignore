@@ -1,0 +1,23 @@
+# Ignore everything by default
+*
+
+# Allow directories so git can traverse them to find files
+# !*/
+
+# Allow specific file types
+!*.py
+!*.csv
+!.gitignore
+!*.pt
+!*.md
+!*.ipynb
+!frontend/
+!requirements.txt
+!*.jsx
+!*.tsx
+!*.html
+!*.css
+
+# Ignore specific files/directories even if they match the allowed types above
+*dump*
+*copy*

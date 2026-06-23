@@ -1,7 +1,7 @@
 """
 enrich_reviews.py — Fase 2: Google Maps Review Enrichment via Selenium.
 
-Takes a POI CSV (output from fetch_poi2.py) and enriches each POI with
+Takes a POI CSV (output from fetch_poi.py) and enriches each POI with
 Google Maps review data using Selenium browser automation.
 
 This step is OPTIONAL — the rest of the pipeline works without it.
@@ -388,7 +388,7 @@ def enrich_pois(
     and saves enriched data to output_csv + reviews_json.
 
     Args:
-        input_csv:    Path to POI CSV (from fetch_poi2.py).
+        input_csv:    Path to POI CSV (from fetch_poi.py).
         output_csv:   Path for enriched POI CSV output.
         reviews_json: Path for detailed review JSON output.
         max_reviews:  Max reviews to extract per POI.
@@ -537,7 +537,7 @@ Examples:
 
     if not os.path.exists(args.input):
         print(f"ERROR: Input file '{args.input}' not found.")
-        print("Run fetch_poi2.py first to generate the POI seed CSV.")
+        print("Run fetch_poi.py first to generate the POI seed CSV.")
         sys.exit(1)
 
     print("=" * 60)

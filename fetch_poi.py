@@ -1,5 +1,5 @@
 """
-fetch_poi2.py — Dynamic & Flexible POI Fetcher for Any Location.
+fetch_poi.py — Dynamic & Flexible POI Fetcher for Any Location.
 
 Supports two modes:
 
@@ -12,20 +12,20 @@ Supports two modes:
 
 Usage:
     # OSM mode — fetch raw POIs from OpenStreetMap
-    python fetch_poi2.py --mode osm --auto
-    python fetch_poi2.py --mode osm --lat 24.968 --lng 121.191 --radius 1000
+    python fetch_poi.py --mode osm --auto
+    python fetch_poi.py --mode osm --lat 24.968 --lng 121.191 --radius 1000
 
     # Google Maps enrichment mode
-    python fetch_poi2.py --mode gmaps --input poi_seed.csv --output poi_enriched.csv
+    python fetch_poi.py --mode gmaps --input poi_seed.csv --output poi_enriched.csv
 
     # Resume an interrupted Google Maps run
-    python fetch_poi2.py --mode gmaps --input poi_seed.csv --resume
+    python fetch_poi.py --mode gmaps --input poi_seed.csv --resume
 
     # Limit to first N POIs (for testing)
-    python fetch_poi2.py --mode gmaps --input poi_seed.csv --limit 5
+    python fetch_poi.py --mode gmaps --input poi_seed.csv --limit 5
 
     # As importable module
-    from fetch_poi2 import fetch_pois, enrich_pois_gmaps
+    from fetch_poi import fetch_pois, enrich_pois_gmaps
 """
 
 import argparse
@@ -1152,11 +1152,11 @@ Modes:
   gmaps  — Enrich existing POI CSV via Google Maps Playwright scraping
 
 Examples:
-  python fetch_poi2.py --mode osm --auto
-  python fetch_poi2.py --mode osm --lat 24.968 --lng 121.191 --radius 1000
-  python fetch_poi2.py --mode gmaps --input poi_seed.csv --output poi_enriched.csv
-  python fetch_poi2.py --mode gmaps --input poi_seed.csv --limit 5
-  python fetch_poi2.py --mode gmaps --input poi_seed.csv --resume
+  python fetch_poi.py --mode osm --auto
+  python fetch_poi.py --mode osm --lat 24.968 --lng 121.191 --radius 1000
+  python fetch_poi.py --mode gmaps --input poi_seed.csv --output poi_enriched.csv
+  python fetch_poi.py --mode gmaps --input poi_seed.csv --limit 5
+  python fetch_poi.py --mode gmaps --input poi_seed.csv --resume
         """,
     )
 

@@ -1,23 +1,21 @@
 """
-gps2.py — Dynamic POI Direction Awareness System.
-
-Location-agnostic version of gps.py. Works with ANY POI CSV file, not just
-the NCU-specific one. Supports per-CSV caching for multi-location scenarios.
+gps.py — Dynamic POI Direction Awareness System.
 
 Identifies buildings / POIs around any given coordinate and determines their
-relative compass direction.
+relative compass direction. Works with any POI CSV file and supports per-CSV
+caching for multi-location scenarios.
 
 Usage as importable module:
-    from gps2 import query, load_pois
+    from gps import query, load_pois
 
-    # Default CSV (backward compatible — uses poi_buildings_english.csv)
+    # Default CSV (uses poi_buildings_english.csv)
     result = query(24.968, 121.191, radius_m=500)
 
-    # Custom CSV (e.g., from fetch_poi2.py)
+    # Custom CSV (e.g., from fetch_poi.py)
     result = query(35.6812, 139.7671, radius_m=500, csv_path="tokyo_pois.csv")
 
 Usage as standalone FastAPI server:
-    uvicorn gps2:app --reload --port 8000
+    uvicorn gps:app --reload --port 8000
     # Then POST to http://localhost:8000/direction-poi
 """
 
@@ -368,7 +366,7 @@ def query(
     Convenience function: query nearby POIs with cached data.
 
     This is the simplest way to use this module:
-        from gps2 import query
+        from gps import query
 
         # Default (backward compatible with gps.py)
         result = query(24.968, 121.191)

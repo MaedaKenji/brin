@@ -1,6 +1,6 @@
 # Walkthrough: Surrounding Awareness — From Scratch to Running
 
-> **Module**: `final4.py` (v2 — Dynamic Location)
+> **Module**: `app.py` (Dynamic Location API Service)
 >
 > This guide takes you from a fresh `git clone` to a fully running system that
 > analyses images/videos with YOLO and resolves GPS-based Points of Interest for
@@ -39,9 +39,9 @@ The system **dynamically selects** which YOLO model to use (`indoor.pt` vs `outd
 
 | File | Role |
 |---|---|
-| `final4.py` | Main API server — FastAPI app with all endpoints |
-| `gps2.py` | POI direction awareness — finds nearby buildings by compass direction |
-| `fetch_poi2.py` | Dynamic POI fetcher — queries OpenStreetMap's Overpass API for any location |
+| `app.py` | Main API server — FastAPI app with all endpoints |
+| `gps.py` | POI direction awareness — finds nearby buildings by compass direction |
+| `fetch_poi.py` | Dynamic POI fetcher — queries OpenStreetMap's Overpass API for any location |
 | `color.py` | Dominant color detection via K-means clustering |
 | `enrich_reviews.py` | *(Optional)* Google Maps review scraping via Selenium |
 | `frontend/` | Lightweight web dashboard (~20 KB) — React-based UI for uploads and live webcam |
@@ -96,7 +96,7 @@ git clone <repository-url>
 cd brin
 
 # 2. Install dependencies + launch the server (single command)
-pip install -r requirements.txt && python -m uvicorn final4:app --reload --port 8000
+pip install -r requirements.txt && python -m uvicorn app:app --reload --port 8000
 ```
 
 That's it! The server is running at **http://localhost:8000** — open it in your browser to access the web dashboard, or use the API directly.
@@ -173,7 +173,7 @@ dir *.pt       # Windows
 ### Step 5 — Start the Server
 
 ```bash
-uvicorn final4:app --reload --port 8000
+uvicorn app:app --reload --port 8000
 ```
 
 You should see:
@@ -215,12 +215,12 @@ Now when you analyse images with those GPS coordinates, the system will use the 
 ### Option B: Via Command Line
 
 ```bash
-python fetch_poi2.py --mode osm --lat YOUR_LAT --lng YOUR_LNG --radius 1000
+python fetch_poi.py --mode osm --lat YOUR_LAT --lng YOUR_LNG --radius 1000
 ```
 
 Example for New York City:
 ```bash
-python fetch_poi2.py --mode osm --lat 40.7128 --lng -74.0060 --radius 1000
+python fetch_poi.py --mode osm --lat 40.7128 --lng -74.0060 --radius 1000
 ```
 
 ### Option C: Auto-detect Location (via IP)
@@ -228,7 +228,7 @@ python fetch_poi2.py --mode osm --lat 40.7128 --lng -74.0060 --radius 1000
 Let the system detect your location automatically:
 
 ```bash
-python fetch_poi2.py --mode osm --auto
+python fetch_poi.py --mode osm --auto
 ```
 
 Or via API:
@@ -443,7 +443,7 @@ flowchart TD
     O --> Q
     P --> Q
 
-    C --> R["GPS Query\n(gps2.py)"]
+    C --> R["GPS Query\n(gps.py)"]
     R --> S["KDTree spatial search\nin POI CSV"]
     S --> T["Group POIs by\ncompass direction"]
     T --> Q
@@ -632,7 +632,7 @@ curl -X POST "http://localhost:8000/api/enrich" \
 If port 8000 is occupied, use a different port:
 
 ```bash
-uvicorn final4:app --reload --port 8080
+uvicorn app:app --reload --port 8080
 ```
 
 ### Performance Tips
@@ -659,7 +659,7 @@ cd brin
 pip install -r requirements.txt
 
 # 2. Launch the server
-uvicorn final4:app --reload --port 8000
+uvicorn app:app --reload --port 8000
 
 # 3. (In a new terminal) Fetch POIs for your location
 #    Replace coordinates with your own (get them from Google Maps → right-click)

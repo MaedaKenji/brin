@@ -40,8 +40,9 @@ final2.py
 final3.py
 *copy*
 *dump*
-fetch_poi.py
-gps.py
+fetch_poi2.py
+gps2.py
+final4.py
 inference.py
 inference2.py
 train.py

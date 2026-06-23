@@ -32,7 +32,7 @@ cd brin
 pip install -r requirements.txt
 
 # 2. Launch (single command)
-uvicorn final4:app --reload --port 8000
+uvicorn app:app --reload --port 8000
 ```
 
 Open **http://localhost:8000/** in your browser.

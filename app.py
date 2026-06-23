@@ -1,21 +1,19 @@
 """
-final4.py — Dynamic Surrounding Awareness API Service.
+app.py — Dynamic Surrounding Awareness API Service.
 
-Evolution of final3.py with full dynamic multi-location support.
-Merges YOLO object/action detection with GPS POI awareness, and adds
-new endpoints for dynamic POI fetching, auto-location, and review enrichment.
+Merges YOLO object/action detection with GPS POI awareness, and provides
+endpoints for dynamic POI fetching, auto-location, and review enrichment.
 
-New in this version (v2):
+Capabilities:
   - Dynamic POI fetching for any location via Overpass API
   - Auto-detect current location via IP geolocation
-  - Configurable POI CSV source (no longer hardcoded to NCU)
+  - Configurable POI CSV source
   - Optional Google Maps review enrichment via Selenium
-  - All original final3.py endpoints remain fully backward compatible
-  - Uses gps2.py (location-agnostic GPS module)
+  - Uses gps.py (location-agnostic GPS module)
 
 Usage:
-    uvicorn final4:app --reload --port 8000
-    # API:  POST /api/analyze       (same as final3.py)
+    uvicorn app:app --reload --port 8000
+    # API:  POST /api/analyze       (image/video analysis)
     # API:  GET  /api/location/auto  (auto-detect location)
     # API:  POST /api/fetch-pois     (dynamic POI fetch)
     # API:  POST /api/enrich         (review enrichment)
@@ -44,7 +42,7 @@ from pydantic import BaseModel, Field
 # pyrefly: ignore [missing-import]
 from ultralytics import YOLO
 from color import detect_dominant_color
-from gps2 import query as gps_query, invalidate_cache as gps_invalidate_cache
+from gps import query as gps_query, invalidate_cache as gps_invalidate_cache
 
 # ── Constants ────────────────────────────────────────────────────────────────────
 
@@ -1091,7 +1089,7 @@ def api_auto_location():
     Returns lat, lng, city, region, country.
     """
     try:
-        from fetch_poi2 import get_current_location
+        from fetch_poi import get_current_location
 
         location = get_current_location()
         return JSONResponse(content={
@@ -1101,7 +1099,7 @@ def api_auto_location():
     except ImportError:
         raise HTTPException(
             status_code=500,
-            detail="fetch_poi2 module not found. Ensure fetch_poi2.py is in the project directory.",
+            detail="fetch_poi module not found. Ensure fetch_poi.py is in the project directory.",
         )
     except RuntimeError as e:
         raise HTTPException(status_code=502, detail=str(e))
@@ -1116,11 +1114,11 @@ def api_fetch_pois(req: FetchPoisRequest):
     Queries the Overpass API and saves the result to a CSV file.
     """
     try:
-        from fetch_poi2 import fetch_pois, save_csv
+        from fetch_poi import fetch_pois, save_csv
     except ImportError:
         raise HTTPException(
             status_code=500,
-            detail="fetch_poi2 module not found. Ensure fetch_poi2.py is in the project directory.",
+            detail="fetch_poi module not found. Ensure fetch_poi.py is in the project directory.",
         )
 
     output_file = req.output_file or "poi_seed.csv"
@@ -1222,10 +1220,10 @@ def favicon():
 if __name__ == "__main__":
     import uvicorn
 
-    print("Starting Surrounding Awareness API v2 (Dynamic Location) on http://localhost:8000")
+    print("Starting Surrounding Awareness API on http://localhost:8000")
     print("  API:  POST /api/analyze        (image/video analysis)")
     print("  API:  GET  /api/location/auto   (auto-detect location)")
     print("  API:  POST /api/fetch-pois      (dynamic POI fetch)")
     print("  API:  POST /api/enrich          (review enrichment)")
-    print("  Demo: GET  /")
+    print("  Web:  GET  /")
     uvicorn.run(app, host="0.0.0.0", port=8000)

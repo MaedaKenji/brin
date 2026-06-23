@@ -137,6 +137,10 @@ source venv/bin/activate
 
 ### Step 3 — Install Dependencies
 
+> [!IMPORTANT]
+> **GPU Support:** If you want to use a GPU, you **must** install PyTorch with GPU support from the official [PyTorch Start Locally guide](https://pytorch.org/get-started/locally/) first, **before** installing any other packages or running the requirements file. Otherwise, PyTorch will default to CPU-only mode.
+
+Install the remaining dependencies:
 ```bash
 pip install -r requirements.txt
 ```
@@ -541,6 +545,11 @@ Here's the **full end-to-end workflow** for a new user at any location:
 # 1. Clone and setup
 git clone <repository-url>
 cd brin
+
+# (Optional) If you want GPU support, install PyTorch GPU first.
+# Visit https://pytorch.org/get-started/locally/ to get the command for your OS/CUDA version.
+# Example: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
 pip install -r requirements.txt
 
 # 2. Launch the server

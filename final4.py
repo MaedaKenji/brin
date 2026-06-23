@@ -1206,7 +1206,15 @@ app.mount(
 
 @app.get("/", response_class=FileResponse)
 def web_demo():
+    print(f"The opened html is {os.path.join(FRONTEND_DIR, 'index.html')}")
+    print(f"Current directory is {os.getcwd()}")
+    print(f"Is it exist: {os.path.exists(os.path.join(FRONTEND_DIR, 'index.html'))}")
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+
+@app.get("/favicon.ico", response_class=FileResponse)
+def favicon():
+    return FileResponse(os.path.join(FRONTEND_DIR, "favicon.svg"), media_type="image/svg+xml")
 
 
 # ── CLI entry point ──────────────────────────────────────────────────────────────

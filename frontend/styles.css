@@ -4,7 +4,43 @@
   padding: 0;
 }
 
-:root {
+/* ── Light theme (default) ──────────────────────────────────────────────── */
+:root,
+[data-theme="light"] {
+  --bg: #f4f6fa;
+  --surface: #ffffff;
+  --surface-2: #eef1f6;
+  --border: #d4dae3;
+  --text: #1a1f2b;
+  --muted: #5f6b7d;
+  --accent: #4a7beb;
+  --accent-2: #13a085;
+  --danger: #d94444;
+  --warning: #c48820;
+  --radius: 8px;
+
+  --preview-bg: #e6e9ef;
+  --pre-text: #2e3748;
+  --pre-bg: #f0f2f6;
+  --tag-object-text: #3a63c4;
+  --tag-object-bg: rgba(74, 123, 235, 0.12);
+  --tag-action-text: #0e8a6d;
+  --tag-action-bg: rgba(19, 160, 133, 0.12);
+  --tag-door-text: #9a7218;
+  --tag-door-bg: rgba(196, 136, 32, 0.12);
+  --tag-gps-text: #c33;
+  --tag-gps-bg: rgba(217, 68, 68, 0.10);
+  --tag-floor-text: #6a4ec8;
+  --tag-floor-bg: rgba(106, 78, 200, 0.12);
+  --tag-model-text: #0e8a6d;
+  --tag-model-bg: rgba(19, 160, 133, 0.08);
+  --tag-model-border: rgba(19, 160, 133, 0.22);
+
+  --select-arrow: %23555e6e;
+}
+
+/* ── Dark theme ─────────────────────────────────────────────────────────── */
+[data-theme="dark"] {
   --bg: #111318;
   --surface: #1a1f27;
   --surface-2: #232a34;
@@ -15,7 +51,25 @@
   --accent-2: #19b394;
   --danger: #e45656;
   --warning: #d89b32;
-  --radius: 8px;
+
+  --preview-bg: #0b0d11;
+  --pre-text: #dbe5f1;
+  --pre-bg: #0c0f14;
+  --tag-object-text: #b8ccff;
+  --tag-object-bg: rgba(91, 141, 239, 0.15);
+  --tag-action-text: #82e5d1;
+  --tag-action-bg: rgba(25, 179, 148, 0.14);
+  --tag-door-text: #ffd48a;
+  --tag-door-bg: rgba(216, 155, 50, 0.14);
+  --tag-gps-text: #ffb7b7;
+  --tag-gps-bg: rgba(228, 86, 86, 0.14);
+  --tag-floor-text: #c7b7ff;
+  --tag-floor-bg: rgba(137, 104, 255, 0.16);
+  --tag-model-text: #b8f0e6;
+  --tag-model-bg: rgba(25, 179, 148, 0.12);
+  --tag-model-border: rgba(25, 179, 148, 0.25);
+
+  --select-arrow: %23a8b3c1;
 }
 
 body {
@@ -23,11 +77,44 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  transition: background 280ms ease, color 280ms ease;
 }
 
 button,
 input {
   font: inherit;
+}
+
+/* ── Theme toggle ───────────────────────────────────────────────────────── */
+.theme-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: color 200ms ease, background 200ms ease, border-color 200ms ease, transform 200ms ease;
+}
+
+.theme-toggle:hover {
+  color: var(--text);
+  border-color: var(--accent);
+  transform: scale(1.08);
+}
+
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
+  transition: transform 320ms ease;
+}
+
+.theme-toggle:active svg {
+  transform: rotate(25deg) scale(0.92);
 }
 
 .app {
@@ -37,6 +124,10 @@ input {
 }
 
 .app-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 24px;
 }
 
@@ -58,6 +149,7 @@ input {
   border-radius: var(--radius);
   padding: 20px;
   margin-bottom: 18px;
+  transition: background 280ms ease, border-color 280ms ease;
 }
 
 .panel h2 {
@@ -96,7 +188,7 @@ input {
   width: 100%;
   max-height: 420px;
   object-fit: contain;
-  background: #0b0d11;
+  background: var(--preview-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   margin-top: 16px;
@@ -130,6 +222,7 @@ input {
   border-radius: var(--radius);
   outline: none;
   padding: 10px 12px;
+  transition: background 280ms ease, border-color 160ms ease, color 280ms ease;
 }
 
 .field input:focus {
@@ -147,11 +240,11 @@ input {
   padding: 10px 12px;
   cursor: pointer;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a8b3c1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='var(--select-arrow)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding-right: 36px;
-  transition: border-color 160ms ease;
+  transition: background-color 280ms ease, border-color 160ms ease, color 280ms ease;
 }
 
 .select-input:focus {
@@ -170,6 +263,7 @@ input {
   border-radius: var(--radius);
   padding: 10px 12px;
   line-height: 1.35;
+  transition: background 280ms ease, border-color 280ms ease, color 280ms ease;
 }
 
 .model-icon {
@@ -251,34 +345,34 @@ input {
 }
 
 .tag.object {
-  color: #b8ccff;
-  background: rgba(91, 141, 239, 0.15);
+  color: var(--tag-object-text);
+  background: var(--tag-object-bg);
 }
 
 .tag.action {
-  color: #82e5d1;
-  background: rgba(25, 179, 148, 0.14);
+  color: var(--tag-action-text);
+  background: var(--tag-action-bg);
 }
 
 .tag.door {
-  color: #ffd48a;
-  background: rgba(216, 155, 50, 0.14);
+  color: var(--tag-door-text);
+  background: var(--tag-door-bg);
 }
 
 .tag.gps {
-  color: #ffb7b7;
-  background: rgba(228, 86, 86, 0.14);
+  color: var(--tag-gps-text);
+  background: var(--tag-gps-bg);
 }
 
 .tag.floor {
-  color: #c7b7ff;
-  background: rgba(137, 104, 255, 0.16);
+  color: var(--tag-floor-text);
+  background: var(--tag-floor-bg);
 }
 
 .tag.model {
-  color: #b8f0e6;
-  background: rgba(25, 179, 148, 0.12);
-  border: 1px solid rgba(25, 179, 148, 0.25);
+  color: var(--tag-model-text);
+  background: var(--tag-model-bg);
+  border: 1px solid var(--tag-model-border);
   cursor: help;
 }
 
@@ -286,13 +380,14 @@ pre {
   max-height: 620px;
   overflow: auto;
   white-space: pre-wrap;
-  color: #dbe5f1;
-  background: #0c0f14;
+  color: var(--pre-text);
+  background: var(--pre-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px;
   line-height: 1.55;
   font-size: 0.86rem;
+  transition: background 280ms ease, border-color 280ms ease, color 280ms ease;
 }
 
 .hidden {

@@ -1,4 +1,40 @@
-const { useEffect, useRef, useState } = React;
+const { useEffect, useRef, useState, useCallback } = React;
+
+function getInitialTheme() {
+  const stored = localStorage.getItem('theme');
+  if (stored === 'light' || stored === 'dark') return stored;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+function ThemeToggle({ theme, onToggle }) {
+  const isDark = theme === 'dark';
+  return (
+    <button
+      className="theme-toggle"
+      onClick={onToggle}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
+      {isDark ? (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/>
+          <line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+      ) : (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      )}
+    </button>
+  );
+}
 
 function Tag({ type, title, children }) {
   return <span className={`tag ${type}`} title={title}>{children}</span>;
@@ -88,6 +124,7 @@ function buildSummary(result) {
 }
 
 function App() {
+  const [theme, setTheme] = useState(getInitialTheme);
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
   const [lat, setLat] = useState(24.967545);
@@ -111,6 +148,16 @@ function App() {
   const frameNumberRef = useRef(0);
 
   const isVideo = file?.type.startsWith("video/");
+
+  // Apply theme to <html> and persist
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -254,8 +301,11 @@ function App() {
   return (
     <main className="app">
       <header className="app-header">
-        <h1>Surrounding Awareness</h1>
-        <p>Upload media or stream your webcam for continuous surrounding awareness.</p>
+        <div>
+          <h1>Surrounding Awareness</h1>
+          <p>Upload media or stream your webcam for continuous surrounding awareness.</p>
+        </div>
+        <ThemeToggle theme={theme} onToggle={toggleTheme} />
       </header>
 
       <section className="panel">

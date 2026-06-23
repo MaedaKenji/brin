@@ -1,23 +1,61 @@
-# Ignore everything by default
-*
+# ── Python ──────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
 
-# Allow directories so git can traverse them to find files
-# !*/
+# ── Virtual environments ───────────────────────────────────
+venv/
+.venv/
+env/
+test_env/
 
-# Allow specific file types
-!*.py
-!*.csv
-!.gitignore
-!*.pt
-!*.md
-!*.ipynb
-!frontend/
-!requirements.txt
-!*.jsx
-!*.tsx
-!*.html
-!*.css
+# ── IDE / Editor ───────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
-# Ignore specific files/directories even if they match the allowed types above
-*dump*
+# ── OS ─────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Generated data files ──────────────────────────────────
+poi_seed.csv
+poi_enriched.csv
+reviews.json
+
+# ── Notebooks ──────────────────────────────────────────────
+*.ipynb
+.ipynb_checkpoints/
+
+# ── Old / dev files (not for release) ─────────────────────
+final.py
+final1.py
+final2.py
+final3.py
 *copy*
+*dump*
+fetch_poi.py
+gps.py
+inference.py
+inference2.py
+train.py
+upload_model.py
+video.py
+video_out.py
+test_gps.py
+benchmark_memory.py
+bencmark_result.md
+best.pt
+poi_buildings.csv
+PRD.md
+gpsPRD.md
+POSTMAN_GUIDE.md
+walkthrough\ gps.md
+walkthrough\ with\ frontend.md
+walkthrough\ without\ frontend.md

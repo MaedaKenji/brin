@@ -25,8 +25,6 @@ Thumbs.db
 desktop.ini
 
 # ── Generated data files ──────────────────────────────────
-poi_seed.csv
-poi_enriched.csv
 reviews.json
 
 # ── Notebooks ──────────────────────────────────────────────
@@ -60,3 +58,33 @@ POSTMAN_GUIDE.md
 walkthrough\ gps.md
 walkthrough\ with\ frontend.md
 walkthrough\ without\ frontend.md
+
+# ── Local Virtualenvs ──────────────────────────────────────
+venv-cvat/
+
+# ── Datasets and Labeling ──────────────────────────────────
+auto_labeler/
+cvat/
+human action - coco.v1i.yolo26/
+tiny_coco_dataset-master/
+surrounding-awareness-*/
+
+# ── Media and Images ───────────────────────────────────────
+*.mp4
+*.jpg
+*.jpeg
+*.png
+my_image/
+
+# ── Project Outputs and Cache ──────────────────────────────
+output/
+runs/
+ssh miot/
+benchmark_results.json
+poi_enriched_gmaps_progress.json
+*.xlsx
+~$*.xlsx
+
+# ── Environment and Configuration ──────────────────────────
+.env
+data.yaml

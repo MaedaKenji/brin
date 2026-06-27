@@ -1,0 +1,10 @@
+{
+  "image": "indoor.jpg",
+  "lat": 24.968128,
+  "lng": 121.194666,
+  "altitude": 105.0,
+  "model": "auto",
+  "gps_radius": 500.0,
+  "indoor_radius_m": 30.0,
+  "poi_csv": "poi_buildings_english.csv"
+}
